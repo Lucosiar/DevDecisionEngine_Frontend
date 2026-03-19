@@ -1,64 +1,158 @@
-import Image from "next/image";
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import { AnalysisResultCard } from "./components/analysis-result-card";
+import {
+  AnalyzeRepository,
+  AnalyzeResponse,
+  analyzeRepository,
+  fetchRepositories,
+} from "./lib/analyze-api";
 
 export default function Home() {
+  const [repositories, setRepositories] = useState<AnalyzeRepository[]>([]);
+  const [selectedRepositoryUrl, setSelectedRepositoryUrl] = useState("");
+  const [isRepositoriesLoading, setIsRepositoriesLoading] = useState(true);
+  const [repositoriesError, setRepositoriesError] = useState("");
+  const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [requestError, setRequestError] = useState("");
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadRepositories() {
+      setIsRepositoriesLoading(true);
+      setRepositoriesError("");
+
+      try {
+        const options = await fetchRepositories();
+        if (isCancelled) {
+          return;
+        }
+
+        setRepositories(options);
+        setSelectedRepositoryUrl(options[0]?.url ?? "");
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar los repositorios.";
+        setRepositoriesError(message);
+      } finally {
+        if (!isCancelled) {
+          setIsRepositoriesLoading(false);
+        }
+      }
+    }
+
+    void loadRepositories();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const canSubmit =
+    !isRepositoriesLoading &&
+    selectedRepositoryUrl.trim().length > 0 &&
+    !isLoading;
+
+  async function handleAnalyze(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmit) {
+      return;
+    }
+
+    setIsLoading(true);
+    setRequestError("");
+    setResult(null);
+
+    try {
+      const analysis = await analyzeRepository(selectedRepositoryUrl);
+      setResult(analysis);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Ocurrio un error al analizar.";
+      setRequestError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f5f7fb_0%,#eef2ff_100%)] px-4 py-10">
+      <main className="mx-auto w-full max-w-3xl">
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg sm:p-8">
+          <header>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+              Dev Decision Engine
+            </h1>
+            <p className="mt-2 text-sm text-slate-600 sm:text-base">
+              Selecciona un repositorio y ejecuta el analisis.
+            </p>
+          </header>
+
+          <form className="mt-6 space-y-4" onSubmit={handleAnalyze}>
+            <label
+              className="block text-sm font-medium text-slate-700"
+              htmlFor="repository-select"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Repositorio
+            </label>
+            <select
+              id="repository-select"
+              className="h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+              value={selectedRepositoryUrl}
+              onChange={(event) => setSelectedRepositoryUrl(event.target.value)}
+              disabled={isRepositoriesLoading || repositories.length === 0}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+              {isRepositoriesLoading ? (
+                <option value="">Cargando repositorios...</option>
+              ) : null}
+              {!isRepositoriesLoading && repositories.length === 0 ? (
+                <option value="">No hay repositorios disponibles</option>
+              ) : null}
+              {repositories.map((repository) => (
+                <option key={repository.id} value={repository.url}>
+                  {repository.name}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {isLoading ? "Analizando..." : "Analizar"}
+            </button>
+          </form>
+
+          {repositoriesError ? (
+            <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {repositoriesError}
+            </p>
+          ) : null}
+
+          {requestError ? (
+            <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {requestError}
+            </p>
+          ) : null}
+        </section>
+
+        {result ? (
+          <div className="mt-6">
+            <AnalysisResultCard result={result} />
+          </div>
+        ) : null}
       </main>
     </div>
   );
