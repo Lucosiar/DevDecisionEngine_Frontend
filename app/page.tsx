@@ -1,20 +1,27 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AnalysisResultCard } from "./components/analysis-result-card";
 import {
+  AnalyzeRequest,
   AnalyzeRepository,
   AnalyzeResponse,
   analyzeRepository,
   fetchRepositories,
 } from "./lib/analyze-api";
+import { buildGithubIssueUrl } from "./lib/github-issue";
+
+const ERROR_INPUT_MAX_LENGTH = 8000;
 
 export default function Home() {
   const [repositories, setRepositories] = useState<AnalyzeRepository[]>([]);
   const [selectedRepositoryUrl, setSelectedRepositoryUrl] = useState("");
+  const [errorInput, setErrorInput] = useState("");
   const [isRepositoriesLoading, setIsRepositoriesLoading] = useState(true);
   const [repositoriesError, setRepositoriesError] = useState("");
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [lastAnalyzeRequest, setLastAnalyzeRequest] =
+    useState<AnalyzeRequest | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [requestError, setRequestError] = useState("");
 
@@ -71,10 +78,17 @@ export default function Home() {
     setIsLoading(true);
     setRequestError("");
     setResult(null);
+    setLastAnalyzeRequest(null);
 
     try {
-      const analysis = await analyzeRepository(selectedRepositoryUrl);
+      const requestPayload: AnalyzeRequest = {
+        repositoryUrl: selectedRepositoryUrl,
+        error: errorInput,
+      };
+
+      const analysis = await analyzeRepository(requestPayload);
       setResult(analysis);
+      setLastAnalyzeRequest(requestPayload);
     } catch (error) {
       const message =
         error instanceof Error
@@ -86,6 +100,18 @@ export default function Home() {
     }
   }
 
+  const githubIssueUrl = useMemo(() => {
+    if (!result || !lastAnalyzeRequest?.repositoryUrl) {
+      return null;
+    }
+
+    return buildGithubIssueUrl({
+      repositoryUrl: lastAnalyzeRequest.repositoryUrl,
+      analysis: result,
+      reportedError: lastAnalyzeRequest.error,
+    });
+  }, [lastAnalyzeRequest, result]);
+
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f5f7fb_0%,#eef2ff_100%)] px-4 py-10">
       <main className="mx-auto w-full max-w-3xl">
@@ -95,7 +121,8 @@ export default function Home() {
               Dev Decision Engine
             </h1>
             <p className="mt-2 text-sm text-slate-600 sm:text-base">
-              Selecciona un repositorio y ejecuta el analisis.
+              Selecciona un repositorio, pega un error o stacktrace y ejecuta
+              el analisis.
             </p>
           </header>
 
@@ -126,6 +153,27 @@ export default function Home() {
               ))}
             </select>
 
+            <label
+              className="block text-sm font-medium text-slate-700"
+              htmlFor="error-input"
+            >
+              Error o stacktrace (opcional)
+            </label>
+            <textarea
+              id="error-input"
+              className="min-h-40 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+              placeholder="Ejemplo: TypeError: Cannot read properties of undefined (reading 'map') at UserList..."
+              value={errorInput}
+              onChange={(event) => setErrorInput(event.target.value)}
+              maxLength={ERROR_INPUT_MAX_LENGTH}
+              disabled={isLoading}
+              spellCheck={false}
+            />
+            <p className="text-xs text-slate-500">
+              {errorInput.length}/{ERROR_INPUT_MAX_LENGTH} caracteres. Si lo
+              dejas vacio, el backend hace analisis general del repositorio.
+            </p>
+
             <button
               type="submit"
               disabled={!canSubmit}
@@ -150,7 +198,7 @@ export default function Home() {
 
         {result ? (
           <div className="mt-6">
-            <AnalysisResultCard result={result} />
+            <AnalysisResultCard result={result} githubIssueUrl={githubIssueUrl} />
           </div>
         ) : null}
       </main>

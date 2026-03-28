@@ -2,9 +2,13 @@ import { AnalyzeResponse } from "../lib/analyze-api";
 
 interface AnalysisResultCardProps {
   result: AnalyzeResponse;
+  githubIssueUrl?: string | null;
 }
 
-export function AnalysisResultCard({ result }: AnalysisResultCardProps) {
+export function AnalysisResultCard({
+  result,
+  githubIssueUrl,
+}: AnalysisResultCardProps) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-slate-900">Resultado</h2>
@@ -39,6 +43,23 @@ export function AnalysisResultCard({ result }: AnalysisResultCardProps) {
           <dd className="mt-1 text-slate-800">{result.solution}</dd>
         </div>
       </dl>
+
+      <div className="mt-6 border-t border-slate-200 pt-4">
+        {githubIssueUrl ? (
+          <a
+            href={githubIssueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white transition hover:bg-sky-500"
+          >
+            Crear Issue en GitHub
+          </a>
+        ) : (
+          <p className="text-sm text-slate-500">
+            No se pudo construir el link de GitHub para este repositorio.
+          </p>
+        )}
+      </div>
     </section>
   );
 }

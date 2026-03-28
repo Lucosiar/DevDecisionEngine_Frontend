@@ -14,6 +14,11 @@ export interface AnalyzeResponse {
   solution: string;
 }
 
+export interface AnalyzeRequest {
+  repositoryUrl?: string;
+  error?: string;
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
@@ -30,14 +35,16 @@ export async function fetchRepositories(): Promise<AnalyzeRepository[]> {
 }
 
 export async function analyzeRepository(
-  repositoryUrl: string,
+  request: AnalyzeRequest,
 ): Promise<AnalyzeResponse> {
+  const payload = normalizeAnalyzeRequest(request);
+
   const response = await fetch(`${API_BASE_URL}/analyze`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ repositoryUrl }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -57,4 +64,14 @@ export async function analyzeRepository(
 
   const data = (await response.json()) as AnalyzeResponse;
   return data;
+}
+
+function normalizeAnalyzeRequest(request: AnalyzeRequest): AnalyzeRequest {
+  const repositoryUrl = request.repositoryUrl?.trim();
+  const error = request.error?.trim();
+
+  return {
+    repositoryUrl: repositoryUrl && repositoryUrl.length > 0 ? repositoryUrl : undefined,
+    error: error && error.length > 0 ? error : undefined,
+  };
 }
