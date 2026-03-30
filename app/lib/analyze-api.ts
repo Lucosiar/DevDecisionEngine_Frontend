@@ -1,17 +1,24 @@
 export type AnalyzePriority = "HIGH" | "MEDIUM" | "LOW";
 
+export interface AnalyzeFinding {
+  problem: string;
+  cause: string;
+  impact: string;
+  priority: AnalyzePriority;
+  solution: string;
+  confidence: number;
+}
+
 export interface AnalyzeRepository {
   id: string;
   name: string;
   url: string;
 }
 
-export interface AnalyzeResponse {
-  problem: string;
-  cause: string;
-  impact: string;
-  priority: AnalyzePriority;
-  solution: string;
+export interface AnalyzeResponse extends AnalyzeFinding {
+  summary: string;
+  findings: AnalyzeFinding[];
+  mode: "error" | "repository";
 }
 
 export interface AnalyzeRequest {

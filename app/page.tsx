@@ -9,7 +9,7 @@ import {
   analyzeRepository,
   fetchRepositories,
 } from "./lib/analyze-api";
-import { buildGithubIssueUrl } from "./lib/github-issue";
+import { buildGithubIssueUrls } from "./lib/github-issue";
 
 const ERROR_INPUT_MAX_LENGTH = 8000;
 
@@ -90,22 +90,22 @@ export default function Home() {
       setResult(analysis);
       setLastAnalyzeRequest(requestPayload);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Ocurrio un error al analizar.";
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error al analizar.";
       setRequestError(message);
     } finally {
       setIsLoading(false);
     }
   }
 
-  const githubIssueUrl = useMemo(() => {
+  const githubIssues = useMemo(() => {
     if (!result || !lastAnalyzeRequest?.repositoryUrl) {
-      return null;
+      return [];
     }
 
-    return buildGithubIssueUrl({
+    return buildGithubIssueUrls({
       repositoryUrl: lastAnalyzeRequest.repositoryUrl,
       analysis: result,
       reportedError: lastAnalyzeRequest.error,
@@ -121,8 +121,9 @@ export default function Home() {
               Dev Decision Engine
             </h1>
             <p className="mt-2 text-sm text-slate-600 sm:text-base">
-              Selecciona un repositorio, pega un error o stacktrace y ejecuta
-              el analisis.
+              Selecciona un repositorio, pega un error o deja el campo vacío
+              para que el sistema inspeccione el código y detecte varios
+              hallazgos automáticamente.
             </p>
           </header>
 
@@ -171,7 +172,8 @@ export default function Home() {
             />
             <p className="text-xs text-slate-500">
               {errorInput.length}/{ERROR_INPUT_MAX_LENGTH} caracteres. Si lo
-              dejas vacio, el backend hace analisis general del repositorio.
+              dejas vacío, el backend analiza el repositorio y devuelve hasta 5
+              hallazgos concretos.
             </p>
 
             <button
@@ -198,7 +200,7 @@ export default function Home() {
 
         {result ? (
           <div className="mt-6">
-            <AnalysisResultCard result={result} githubIssueUrl={githubIssueUrl} />
+            <AnalysisResultCard result={result} githubIssues={githubIssues} />
           </div>
         ) : null}
       </main>

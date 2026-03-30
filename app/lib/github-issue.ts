@@ -1,6 +1,6 @@
-import { AnalyzeResponse } from "./analyze-api";
+import { AnalyzeFinding, AnalyzeResponse } from "./analyze-api";
 
-interface BuildGithubIssueUrlParams {
+interface BuildGithubIssueUrlsParams {
   repositoryUrl: string;
   analysis: AnalyzeResponse;
   reportedError?: string;
@@ -11,28 +11,46 @@ interface GithubRepositoryCoordinates {
   repository: string;
 }
 
+export interface GithubIssueDraft {
+  findingIndex: number;
+  finding: AnalyzeFinding;
+  url: string;
+}
+
 const MAX_ISSUE_TITLE_LENGTH = 90;
 const MAX_REPORTED_ERROR_LENGTH = 1200;
 
-export function buildGithubIssueUrl(
-  params: BuildGithubIssueUrlParams,
-): string | null {
+export function buildGithubIssueUrls(
+  params: BuildGithubIssueUrlsParams,
+): GithubIssueDraft[] {
   const repository = parseGithubRepositoryUrl(params.repositoryUrl);
   if (!repository) {
-    return null;
+    return [];
   }
 
-  const issueUrl = new URL(
-    `https://github.com/${repository.owner}/${repository.repository}/issues/new`,
-  );
+  return params.analysis.findings.map((finding, index) => {
+    const issueUrl = new URL(
+      `https://github.com/${repository.owner}/${repository.repository}/issues/new`,
+    );
 
-  issueUrl.searchParams.set("title", buildIssueTitle(params.analysis));
-  issueUrl.searchParams.set(
-    "body",
-    buildIssueBody(params.analysis, params.repositoryUrl, params.reportedError),
-  );
+    issueUrl.searchParams.set("title", buildIssueTitle(finding));
+    issueUrl.searchParams.set(
+      "body",
+      buildIssueBody({
+        analysis: params.analysis,
+        finding,
+        findingIndex: index,
+        repositoryUrl: params.repositoryUrl,
+        reportedError: params.reportedError,
+      }),
+    );
 
-  return issueUrl.toString();
+    return {
+      findingIndex: index,
+      finding,
+      url: issueUrl.toString(),
+    };
+  });
 }
 
 function parseGithubRepositoryUrl(
@@ -68,9 +86,9 @@ function parseGithubRepositoryUrl(
   }
 }
 
-function buildIssueTitle(analysis: AnalyzeResponse): string {
-  const normalizedProblem = analysis.problem.replace(/\s+/g, " ").trim();
-  const title = `[${analysis.priority}] ${normalizedProblem}`;
+function buildIssueTitle(finding: AnalyzeFinding): string {
+  const normalizedProblem = finding.problem.replace(/\s+/g, " ").trim();
+  const title = `[${finding.priority}] ${normalizedProblem}`;
 
   if (title.length <= MAX_ISSUE_TITLE_LENGTH) {
     return title;
@@ -79,26 +97,44 @@ function buildIssueTitle(analysis: AnalyzeResponse): string {
   return `${title.slice(0, MAX_ISSUE_TITLE_LENGTH - 3).trimEnd()}...`;
 }
 
-function buildIssueBody(
-  analysis: AnalyzeResponse,
-  repositoryUrl: string,
-  reportedError?: string,
-): string {
+function buildIssueBody({
+  analysis,
+  finding,
+  findingIndex,
+  repositoryUrl,
+  reportedError,
+}: {
+  analysis: AnalyzeResponse;
+  finding: AnalyzeFinding;
+  findingIndex: number;
+  repositoryUrl: string;
+  reportedError?: string;
+}): string {
   return [
+    "## Resumen del análisis",
+    analysis.summary,
+    "",
     "## Problema",
-    analysis.problem,
+    finding.problem,
     "",
     "## Causa",
-    analysis.cause,
+    finding.cause,
     "",
-    "## Problematica que genera",
-    analysis.impact,
+    "## Impacto",
+    finding.impact,
     "",
     "## Prioridad",
-    `\`${analysis.priority}\``,
+    `\`${finding.priority}\``,
     "",
-    "## Solucion sugerida",
-    analysis.solution,
+    "## Solución sugerida",
+    finding.solution,
+    "",
+    "## Confianza",
+    `${finding.confidence}%`,
+    "",
+    "## Contexto del análisis",
+    `- Hallazgo: ${findingIndex + 1} de ${analysis.findings.length}`,
+    `- Modo: ${analysis.mode}`,
     "",
     "## Error log",
     formatReportedError(reportedError),
