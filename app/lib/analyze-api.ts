@@ -28,7 +28,7 @@ export interface AnalyzeRequest {
 }
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://midu.lucosiar.es";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://194.26.100.95";
 
 export async function fetchRepositories(): Promise<AnalyzeRepository[]> {
   const response = await fetch(`${API_BASE_URL}/analyze/repositories`, {
