@@ -85,6 +85,7 @@ export function AnalysisResultCard({
                 <Field label="Causa" value={finding.cause} />
                 <Field label="Impacto" value={finding.impact} />
                 <Field label="Solución" value={finding.solution} />
+                <Field label="Próxima acción" value={finding.nextAction} />
               </dl>
 
               <div className="mt-5 border-t border-slate-200 pt-4">
